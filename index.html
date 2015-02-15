@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+	<html>
+	<head>
+		<style>
+		
+			span { cursor: pointer; cursor: hand; }
+		
+			.btn {
+  background: #3498db;
+  background-image: -webkit-linear-gradient(top, #3498db, #2980b9);
+  background-image: -moz-linear-gradient(top, #3498db, #2980b9);
+  background-image: -ms-linear-gradient(top, #3498db, #2980b9);
+  background-image: -o-linear-gradient(top, #3498db, #2980b9);
+  background-image: linear-gradient(to bottom, #3498db, #2980b9);
+  -webkit-border-radius: 28;
+  -moz-border-radius: 28;
+  border-radius: 28px;
+  font-family: Arial;
+  color: #ffffff;
+  font-size: 20px;
+  padding: 10px 20px 10px 20px;
+  text-decoration: none;
+}
+
+.btn:hover {
+  background: #3cb0fd;
+  background-image: -webkit-linear-gradient(top, #3cb0fd, #3498db);
+  background-image: -moz-linear-gradient(top, #3cb0fd, #3498db);
+  background-image: -ms-linear-gradient(top, #3cb0fd, #3498db);
+  background-image: -o-linear-gradient(top, #3cb0fd, #3498db);
+  background-image: linear-gradient(to bottom, #3cb0fd, #3498db);
+  text-decoration: none;
+}
+ 
+		</style>
+	
+	</head>
+	<body>
+				
+				<div style="float:left;padding-top:5px">
+					Name: <input type="text" id="name">
+					Category: <input type="text" id="category">
+					Length: <input type="text" id="length">
+					<span class="btn" id="addVideo" style="">Add Video</span>
+				</div>
+				
+				<div style="float:right;padding-top:5px">
+					<span class="btn" id="deleteAll" >Delete All</span>
+				</div>
+				
+				<br><br><br>
+				
+				<div style="display:block;padding-top:5px">
+						Filter: <select id="filter">
+						<option value="Any">ANY</option>
+						</select>	
+				<span class="btn" id="getVideoCatalog">Search</span>
+				</div>
+	
+	<br><br>
+	
+	Request Status: <span id="status"></span>
+	
+	<br><br>
+	Videos:<div id="videos">
+	</div>
+	</body>
+	</html>
+	
+<script type="text/javascript">
+//(function() {
+
+  var httpRequest;
+  VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=getCategories"); 
+  VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=getVideoCatalog" + "&filter=Any"); 
+
+  
+  document.getElementById("addVideo").onclick = function() { 
+  
+		var request = "addVideo";
+		var name = document.getElementById('name').value;
+		var category = document.getElementById('category').value;
+		var length = document.getElementById('length').value;
+		
+		if(checkInput(name,category,length)){
+			VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=" + request + "&name=" + name + "&category=" + category + "&length=" + length ); 
+		}
+	};
+	
+	document.getElementById("getVideoCatalog").onclick = function() { 
+  
+		var request = "getVideoCatalog";
+		var filter = document.getElementById('filter').value
+		VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=" + request + "&filter=" + filter ); 
+		
+	};
+	
+	document.getElementById("deleteAll").onclick = function() { 
+  
+		var request = "deleteAll";
+		VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=" + request ); 
+		
+	};
+	
+  function VideoStoreRequest(url) {
+    if (window.XMLHttpRequest) { // Mozilla, Safari, ...
+      httpRequest = new XMLHttpRequest();
+    } else if (window.ActiveXObject) { // IE
+      try {
+        httpRequest = new ActiveXObject("Msxml2.XMLHTTP");
+      } 
+      catch (e) {
+        try {
+          httpRequest = new ActiveXObject("Microsoft.XMLHTTP");
+        } 
+        catch (e) {}
+      }
+    }
+
+    if (!httpRequest) {
+      alert('Giving up :( Cannot create an XMLHTTP instance');
+      return false;
+    }
+    httpRequest.onreadystatechange = VideoStoreResult;
+	
+	httpRequest.open('GET', url,false);
+	httpRequest.send();
+	
+  
+  }
+
+  function VideoStoreResult() {
+    if (httpRequest.readyState === 4) {
+      if (httpRequest.status === 200) {
+
+		var result = JSON.parse(httpRequest.responseText);
+		
+		if(result['Response'] == "addVideo") {
+			
+			if(result['isSuccess'] == "False") {
+				document.getElementById('status').innerHTML = result["error"];
+			} else {
+				document.getElementById('status').innerHTML = result["name"] + " available for checkout";
+				var existingVideos = document.getElementById('videos').innerHTML;
+				var existingVideos = existingVideos + result["name"] + " " + result["category"] + " " + result["length"] + " - - > <span id='" + result["name"] + "ID' style='cursor:hand;color:blue' onClick='rent(\"" + "Check Out" + "\",\"" + result["name"] + "\")'>" + "Check Out" +"</span><span>      </span><span  style='cursor:hand;color:blue' onClick='deleteVideo(\"" + result["name"] + "\")'>" + "(Delete)" +"</span><br>"; 
+				document.getElementById('videos').innerHTML = existingVideos;
+			
+				removeCategories();
+				VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=getCategories"); 
+			}
+		}
+		
+		if(result['Response'] == "deleteAll") {
+			document.getElementById('status').innerHTML = result["values"];
+			removeCategories();
+			document.getElementById('videos').innerHTML  = "";
+		}
+		
+		if(result['Response'] == "getVideoCatalog") {
+			displayVideos(result['values']);
+		}
+		
+		if(result['Response'] == "rentStatus") {
+			var movie = result["movie"];
+			var status = result['status'];
+			document.getElementById(movie + "ID").innerHTML = status;
+			document.getElementById(movie + "ID").onclick = function(){ rent(status,movie); } ;
+			document.getElementById('status').innerHTML = movie + " " + status; 
+		}
+		
+		if(result['Response'] == "getCategories") {
+			createCategories (result);
+		}
+		
+		if(result['Response'] == "deleteVideo") {
+			  var filter = document.getElementById("filter").value;
+
+			 removeCategories();
+			 VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=getCategories"); 
+			
+			document.getElementById('status').innerHTML = result['movie'] + " deleted" ; 
+			 VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=getVideoCatalog" + "&filter=" + filter); 
+		}
+		
+		
+      } else {
+        alert('There was a problem with the request.');
+      }
+    }
+  }
+//})();
+
+function displayVideos(videos){
+
+	var output = "";
+			var rented;
+			for (var i=0; i<videos.length; i++) {
+					if (parseInt(videos[i].rented)) {
+						rented = "Checked Out";
+					} else {
+						rented = "Check Out";
+					}
+			
+					output = output + videos[i].name + " " + videos[i].category + " " + videos[i].length + " - - > <span id='" + videos[i].name + "ID' style='cursor:hand;color:blue' onClick='rent(\"" + rented + "\",\"" + videos[i].name + "\")'>" + rented +"</span><span>      </span><span  style='cursor:hand;color:blue' onClick='deleteVideo(\"" + videos[i].name + "\")'>" + "(Delete)" +"</span><br>";  
+			}
+			document.getElementById('videos').innerHTML = output;
+
+}
+
+function rent(status,movie) {
+		var request;
+		if(status == "Check Out") {
+			request = "setOut";
+		} else {
+			request = "setIn";
+		}
+   		VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=" + request + "&movie=" + movie); 
+	}
+	
+function deleteVideo(movie) {
+		var request = "deleteVideo";
+   		VideoStoreRequest("http://web.engr.oregonstate.edu/~whitegr/PHP_Assignment2/theStore.php?" + "request=" + request + "&movie=" + movie); 
+	}
+
+function removeCategories () {
+	var select = document.getElementById("filter");
+	var length = select.options.length -1;
+	for (i = length; i > 0; i--) {
+			select.remove(i);
+	}
+	//document.getElementById("filter") = select;
+}
+
+function createCategories (result) {
+	var filter = document.getElementById('filter');
+	for (var i = 0; i<result["values"].length; i++){
+		if (result["values"][i].category == "") {
+			continue;
+		}
+		var opt = document.createElement('option');
+		opt.value = result["values"][i].category;
+		opt.innerHTML = result["values"][i].category;
+		filter.add(opt);
+	}
+}
+function checkInput(name,category,length) {
+	
+	if(name == "") {
+		alert ("Movies must have a name.");
+		return 0;
+	}
+	
+	//if(length == "") {
+	//	alert ("Movies must include a Length.");
+	//	return 0;
+	//}
+		
+	if(isNaN(length)) {
+		alert ("Length Must be a Number");
+		return 0;
+	}
+	
+	if(length < 0) {
+		alert ("Length Must be a positive number");
+		return 0;
+	}
+	
+	return 1;
+
+}
+	
+</script>
+
